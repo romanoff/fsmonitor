@@ -1,9 +1,9 @@
 Fsmonit
 =======
-Simple wrapper around [fsnotify](https://github.com/howeyc/fsnotify) to monitor changes in files and folders (including subdirectories created after monitoring has started).
+Simple wrapper around [fsnotify](https://code.google.com/p/go/source/browse/?repo=exp#hg%2Ffsnotify) to monitor changes in files and folders (including subdirectories created after monitoring has started).
 
 Example:
-
+--------
 ```go
 package main
 
@@ -30,4 +30,10 @@ func main() {
 		}
 	}
 }
+```
+
+There is also an option to skip certain folders (like .git for example):
+
+```go
+	watcher, err := fsmonitor.NewWatcherWithSkipFolders([]string{".git"})
 ```
