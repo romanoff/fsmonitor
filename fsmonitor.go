@@ -35,7 +35,12 @@ func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
 				event <- ev
 				if ev.IsCreate() {
 					go func() {
-						monitorWatcher.watchAllFolders(ev.Name)
+						if f, err := os.Stat(ev.Name); err == nil {
+							if f.IsDir() {
+								monitorWatcher.watchAllFolders(ev.Name)
+							}
+						}
+
 					}()
 				}
 				if ev.IsDelete() {
