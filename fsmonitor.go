@@ -1,9 +1,10 @@
 package fsmonitor
 
 import (
-	"code.google.com/p/go.exp/fsnotify"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/fsnotify.v0"
 )
 
 func NewWatcher() (*Watcher, error) {
