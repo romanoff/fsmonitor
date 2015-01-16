@@ -1,7 +1,7 @@
 package fsmonitor
 
 import (
-	"code.google.com/p/go.exp/fsnotify"
+	"github.com/go-fsnotify/fsnotify"
 	"os"
 	"path/filepath"
 )
@@ -25,15 +25,14 @@ func NewWatcherWithSkipFolders(skipFolders []string) (*Watcher, error) {
 }
 
 func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
-	event := make(chan *fsnotify.FileEvent)
+	event := make(chan fsnotify.Event)
 	watcherError := make(chan error)
-	monitorWatcher := &Watcher{Event: event, Error: watcherError, watcher: watcher, SkipFolders: skipFolders}
+	monitorWatcher := &Watcher{Events: event, Error: watcherError, watcher: watcher, SkipFolders: skipFolders}
 	go func() {
 		for {
 			select {
-			case ev := <-watcher.Event:
-				event <- ev
-				if ev.IsCreate() {
+			case ev := <-watcher.Events:
+				if ev.Op&fsnotify.Create == fsnotify.Create {
 					go func() {
 						if f, err := os.Stat(ev.Name); err == nil {
 							if f.IsDir() {
@@ -43,12 +42,12 @@ func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
 
 					}()
 				}
-				if ev.IsDelete() {
+				if ev.Op&fsnotify.Remove == fsnotify.Remove {
 					go func() {
-						watcher.RemoveWatch(ev.Name)
+						watcher.Remove(ev.Name)
 					}()
 				}
-			case e := <-watcher.Error:
+			case e := <-watcher.Errors:
 				watcherError <- e
 			}
 		}
@@ -57,7 +56,7 @@ func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
 }
 
 type Watcher struct {
-	Event       chan *fsnotify.FileEvent
+	Events      chan fsnotify.Event
 	Error       chan error
 	SkipFolders []string
 	watcher     *fsnotify.Watcher
@@ -95,6 +94,6 @@ func (self *Watcher) watchAllFolders(path string) (err error) {
 }
 
 func (self *Watcher) addWatcher(path string) (err error) {
-	err = self.watcher.Watch(path)
+	err = self.watcher.Add(path)
 	return
 }
