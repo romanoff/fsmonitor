@@ -1,11 +1,14 @@
 package fsmonitor
 
 import (
-	"github.com/go-fsnotify/fsnotify"
 	"os"
 	"path/filepath"
+
+    "gopkg.in/fsnotify.v1"
 )
 
+// NewWatcher initializes a new watcher which is able to recursively scan
+// the directory structure.
 func NewWatcher() (*Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -15,6 +18,8 @@ func NewWatcher() (*Watcher, error) {
 	return monitorWatcher, nil
 }
 
+// NewWatcherWithSkipFolders initializes a new watcher capable of watching
+// for file system events of a recursive directory structure.
 func NewWatcherWithSkipFolders(skipFolders []string) (*Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -24,6 +29,7 @@ func NewWatcherWithSkipFolders(skipFolders []string) (*Watcher, error) {
 	return monitorWatcher, nil
 }
 
+// initWatcher starts the underlying watcher interface.
 func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
 	event := make(chan *fsnotify.Event)
 	watcherError := make(chan error)
@@ -56,6 +62,8 @@ func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
 	return monitorWatcher
 }
 
+// Watcher is the struct handling the watching of file system events over a recursive
+// directory tree.
 type Watcher struct {
 	Events      chan *fsnotify.Event
 	Error       chan error
@@ -63,14 +71,13 @@ type Watcher struct {
 	watcher     *fsnotify.Watcher
 }
 
+// Watch starts watching the given path and all it's subdirectories for file system
+// changes.
 func (self *Watcher) Watch(path string) error {
-	err := self.watchAllFolders(path)
-	if err != nil {
-		return err
-	}
-	return nil
+	return self.watchAllFolders(path)
 }
 
+// watchAllFolders starts watching all subdirectories via the underlying fsnotify watchers.
 func (self *Watcher) watchAllFolders(path string) (err error) {
 	err = filepath.Walk(path, func(path string, f os.FileInfo, err error) error {
 		if f != nil && f.IsDir() {
@@ -91,10 +98,10 @@ func (self *Watcher) watchAllFolders(path string) (err error) {
 		}
 		return nil
 	})
-	return
+	return err
 }
 
+// addWatcher adds the given path to the underyling fsnotify watcher.
 func (self *Watcher) addWatcher(path string) (err error) {
-	err = self.watcher.Add(path)
-	return
+	return self.watcher.Add(path)
 }
