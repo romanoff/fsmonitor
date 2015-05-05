@@ -135,6 +135,57 @@ func (t *WatcherTests) TestCreateEventInCreatedDir(c *C) {
     c.Assert(event.Op, Equals, fsnotify.Create)
 }
 
+func (t *WatcherTests) TestDeleteInDir(c *C) {
+    dirName := filepath.Join(t.dir, "test")
+    err := os.Mkdir(dirName, defaultDirPerms)
+    c.Assert(err, IsNil)
+
+    name := filepath.Join(dirName, "test.txt")
+    err = ioutil.WriteFile(name, []byte("asdf"), defaultFilePerms)
+    c.Assert(err, IsNil)
+
+    err = t.watcher.Watch(t.dir)
+    c.Assert(err, IsNil)
+
+    err = os.Remove(name)
+    c.Assert(err, IsNil)
+
+    event := <-t.watcher.Events
+    c.Assert(event.Name, Equals, name)
+    c.Assert(event.Op, Equals, fsnotify.Remove)
+}
+
+func (t *WatcherTests) TestDeleteInCreatedDir(c *C) {
+    err := t.watcher.Watch(t.dir)
+    c.Assert(err, IsNil)
+
+    dirName := filepath.Join(t.dir, "test")
+    err = os.Mkdir(dirName, defaultDirPerms)
+    c.Assert(err, IsNil)
+
+    event := <-t.watcher.Events
+    c.Assert(event.Name, Equals, dirName)
+    c.Assert(event.Op, Equals, fsnotify.Create)
+
+    name := filepath.Join(dirName, "test.txt")
+    err = ioutil.WriteFile(name, []byte("asdf"), defaultFilePerms)
+    c.Assert(err, IsNil)
+
+    event = <-t.watcher.Events
+    c.Assert(event.Name, Equals, name)
+    c.Assert(event.Op, Equals, fsnotify.Create)
+    event = <-t.watcher.Events
+    c.Assert(event.Name, Equals, name)
+    c.Assert(event.Op, Equals, fsnotify.Write)
+
+    err = os.Remove(name)
+    c.Assert(err, IsNil)
+
+    event = <-t.watcher.Events
+    c.Assert(event.Name, Equals, name)
+    c.Assert(event.Op, Equals, fsnotify.Remove)
+}
+
 func (t *WatcherTests) TestClose(c *C) {
     err := t.watcher.Watch(t.dir)
     c.Assert(err, IsNil)
