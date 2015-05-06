@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-    "gopkg.in/fsnotify.v1"
+	"gopkg.in/fsnotify.v1"
 )
 
 // NewWatcher initializes a new watcher which is able to recursively scan
@@ -33,38 +33,38 @@ func NewWatcherWithSkipFolders(skipFolders []string) (*Watcher, error) {
 func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
 	event := make(chan *fsnotify.Event)
 	watcherError := make(chan error)
-    closeChannel := make(chan struct{})
+	closeChannel := make(chan struct{})
 	monitorWatcher := &Watcher{
-        Events: event,
-        Error: watcherError,
-        watcher: watcher,
-        SkipFolders: skipFolders,
-        closeChannel: closeChannel,
-    }
+		Events:       event,
+		Error:        watcherError,
+		watcher:      watcher,
+		SkipFolders:  skipFolders,
+		closeChannel: closeChannel,
+	}
 	go func() {
 		for {
 			select {
-                case ev := <-watcher.Events:
-                    if ev.Op&fsnotify.Create == fsnotify.Create {
-                        go func() {
-                            if f, err := os.Stat(ev.Name); err == nil {
-                                if f.IsDir() {
-                                    monitorWatcher.watchAllFolders(ev.Name)
-                                }
-                            }
+			case ev := <-watcher.Events:
+				if ev.Op&fsnotify.Create == fsnotify.Create {
+					go func() {
+						if f, err := os.Stat(ev.Name); err == nil {
+							if f.IsDir() {
+								monitorWatcher.watchAllFolders(ev.Name)
+							}
+						}
 
-                        }()
-                    }
-                    if ev.Op&fsnotify.Remove == fsnotify.Remove {
-                        go func() {
-                            watcher.Remove(ev.Name)
-                        }()
-                    }
-                    monitorWatcher.Events <- &ev
-                case chanErr := <-watcher.Errors:
-                    watcherError <- chanErr
-                case <-monitorWatcher.closeChannel:
-                    return
+					}()
+				}
+				if ev.Op&fsnotify.Remove == fsnotify.Remove {
+					go func() {
+						watcher.Remove(ev.Name)
+					}()
+				}
+				monitorWatcher.Events <- &ev
+			case chanErr := <-watcher.Errors:
+				watcherError <- chanErr
+			case <-monitorWatcher.closeChannel:
+				return
 			}
 		}
 	}()
@@ -78,7 +78,7 @@ type Watcher struct {
 	Error        chan error
 	SkipFolders  []string
 	watcher      *fsnotify.Watcher
-    closeChannel chan struct{}
+	closeChannel chan struct{}
 }
 
 // Watch starts watching the given path and all it's subdirectories for file system
@@ -118,6 +118,6 @@ func (self *Watcher) addWatcher(path string) error {
 
 // Close stops the internal watcher.
 func (self *Watcher) Close() error {
-    close(self.closeChannel)
-    return self.watcher.Close()
+	close(self.closeChannel)
+	return self.watcher.Close()
 }

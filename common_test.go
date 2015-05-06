@@ -1,11 +1,11 @@
 package fsmonitor
 
 import (
-    "testing"
+	"testing"
 
-    . "gopkg.in/check.v1"
+	. "gopkg.in/check.v1"
 )
 
 func Test(t *testing.T) {
-    TestingT(t)
+	TestingT(t)
 }
