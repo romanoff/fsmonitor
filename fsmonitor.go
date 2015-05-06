@@ -83,16 +83,16 @@ type Watcher struct {
 
 // Watch starts watching the given path and all it's subdirectories for file system
 // changes.
-func (self *Watcher) Watch(path string) error {
-	return self.watchAllFolders(path)
+func (w *Watcher) Watch(path string) error {
+	return w.watchAllFolders(path)
 }
 
 // watchAllFolders starts watching all subdirectories via the underlying fsnotify watchers.
-func (self *Watcher) watchAllFolders(path string) (err error) {
+func (w *Watcher) watchAllFolders(path string) (err error) {
 	err = filepath.Walk(path, func(path string, f os.FileInfo, err error) error {
 		if f != nil && f.IsDir() {
 			filename := f.Name()
-			for _, skipFolder := range self.SkipFolders {
+			for _, skipFolder := range w.SkipFolders {
 				match, err := filepath.Match(skipFolder, filename)
 				if err != nil {
 					return err
@@ -101,7 +101,7 @@ func (self *Watcher) watchAllFolders(path string) (err error) {
 					return filepath.SkipDir
 				}
 			}
-			err := self.addWatcher(path)
+			err := w.addWatcher(path)
 			if err != nil {
 				return err
 			}
@@ -112,12 +112,12 @@ func (self *Watcher) watchAllFolders(path string) (err error) {
 }
 
 // addWatcher adds the given path to the underyling fsnotify watcher.
-func (self *Watcher) addWatcher(path string) error {
-	return self.watcher.Add(path)
+func (w *Watcher) addWatcher(path string) error {
+	return w.watcher.Add(path)
 }
 
 // Close stops the internal watcher.
-func (self *Watcher) Close() error {
-	close(self.closeChannel)
-	return self.watcher.Close()
+func (w *Watcher) Close() error {
+	close(w.closeChannel)
+	return w.watcher.Close()
 }
