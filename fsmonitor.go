@@ -1,11 +1,14 @@
 package fsmonitor
 
 import (
-	"code.google.com/p/go.exp/fsnotify"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/fsnotify.v1"
 )
 
+// NewWatcher initializes a new watcher which is able to recursively scan
+// the directory structure.
 func NewWatcher() (*Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -15,6 +18,8 @@ func NewWatcher() (*Watcher, error) {
 	return monitorWatcher, nil
 }
 
+// NewWatcherWithSkipFolders initializes a new watcher capable of watching
+// for file system events of a recursive directory structure.
 func NewWatcherWithSkipFolders(skipFolders []string) (*Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -24,16 +29,24 @@ func NewWatcherWithSkipFolders(skipFolders []string) (*Watcher, error) {
 	return monitorWatcher, nil
 }
 
+// initWatcher starts the underlying watcher interface.
 func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
-	event := make(chan *fsnotify.FileEvent)
+	event := make(chan *fsnotify.Event)
 	watcherError := make(chan error)
-	monitorWatcher := &Watcher{Event: event, Error: watcherError, watcher: watcher, SkipFolders: skipFolders}
+	closeChannel := make(chan struct{})
+	monitorWatcher := &Watcher{
+		Events:       event,
+		Error:        watcherError,
+		watcher:      watcher,
+		SkipFolders:  skipFolders,
+		closeChannel: closeChannel,
+        isClosed:     false,
+	}
 	go func() {
 		for {
 			select {
-			case ev := <-watcher.Event:
-				event <- ev
-				if ev.IsCreate() {
+			case ev := <-watcher.Events:
+				if ev.Op&fsnotify.Create == fsnotify.Create {
 					go func() {
 						if f, err := os.Stat(ev.Name); err == nil {
 							if f.IsDir() {
@@ -43,39 +56,45 @@ func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
 
 					}()
 				}
-				if ev.IsDelete() {
+				if ev.Op&fsnotify.Remove == fsnotify.Remove {
 					go func() {
-						watcher.RemoveWatch(ev.Name)
+						watcher.Remove(ev.Name)
 					}()
 				}
-			case e := <-watcher.Error:
-				watcherError <- e
+				monitorWatcher.Events <- &ev
+			case chanErr := <-watcher.Errors:
+				watcherError <- chanErr
+			case <-monitorWatcher.closeChannel:
+				return
 			}
 		}
 	}()
 	return monitorWatcher
 }
 
+// Watcher is the struct handling the watching of file system events over a recursive
+// directory tree.
 type Watcher struct {
-	Event       chan *fsnotify.FileEvent
-	Error       chan error
-	SkipFolders []string
-	watcher     *fsnotify.Watcher
+	Events       chan *fsnotify.Event
+	Error        chan error
+	SkipFolders  []string
+	watcher      *fsnotify.Watcher
+	closeChannel chan struct{}
+    isClosed     bool
 }
 
-func (self *Watcher) Watch(path string) error {
-	err := self.watchAllFolders(path)
-	if err != nil {
-		return err
-	}
-	return nil
+// Watch starts watching the given path and all it's subdirectories for file system
+// changes.
+func (w *Watcher) Watch(path string) error {
+	return w.watchAllFolders(path)
 }
 
-func (self *Watcher) watchAllFolders(path string) (err error) {
+// watchAllFolders starts watching all subdirectories via the underlying fsnotify watchers.
+func (w *Watcher) watchAllFolders(path string) (err error) {
 	err = filepath.Walk(path, func(path string, f os.FileInfo, err error) error {
 		if f != nil && f.IsDir() {
 			filename := f.Name()
-			for _, skipFolder := range self.SkipFolders {
+			for _, skipFolder := range w.SkipFolders {
 				match, err := filepath.Match(skipFolder, filename)
 				if err != nil {
 					return err
@@ -84,7 +103,7 @@ func (self *Watcher) watchAllFolders(path string) (err error) {
 					return filepath.SkipDir
 				}
 			}
-			err := self.addWatcher(path)
+			err := w.addWatcher(path)
 			if err != nil {
 				return err
 			}
@@ -94,7 +113,21 @@ func (self *Watcher) watchAllFolders(path string) (err error) {
 	return
 }
 
-func (self *Watcher) addWatcher(path string) (err error) {
-	err = self.watcher.Watch(path)
-	return
+// addWatcher adds the given path to the underyling fsnotify watcher.
+func (w *Watcher) addWatcher(path string) error {
+	return w.watcher.Add(path)
+}
+
+// Close stops the internal watcher.
+func (w *Watcher) Close() error {
+    if(!w.IsClosed()) {
+	    close(w.closeChannel)
+        w.isClosed = true
+    }
+    return w.watcher.Close()
+}
+
+// IsClose returns if the watcher has been closed.
+func (w *Watcher) IsClosed() bool {
+    return w.isClosed
 }
