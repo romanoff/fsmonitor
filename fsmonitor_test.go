@@ -190,8 +190,10 @@ func (t *WatcherTests) TestClose(c *C) {
 	err := t.watcher.Watch(t.dir)
 	c.Assert(err, IsNil)
 
+    c.Assert(t.watcher.IsClosed(), Equals, false)
 	err = t.watcher.Close()
 	c.Assert(err, IsNil)
+    c.Assert(t.watcher.IsClosed(), Equals, true)
 
 	watcher, err := NewWatcher()
 	c.Assert(err, IsNil)

@@ -40,6 +40,7 @@ func initWatcher(watcher *fsnotify.Watcher, skipFolders []string) *Watcher {
 		watcher:      watcher,
 		SkipFolders:  skipFolders,
 		closeChannel: closeChannel,
+        isClosed:     false,
 	}
 	go func() {
 		for {
@@ -79,6 +80,7 @@ type Watcher struct {
 	SkipFolders  []string
 	watcher      *fsnotify.Watcher
 	closeChannel chan struct{}
+    isClosed     bool
 }
 
 // Watch starts watching the given path and all it's subdirectories for file system
@@ -118,6 +120,14 @@ func (w *Watcher) addWatcher(path string) error {
 
 // Close stops the internal watcher.
 func (w *Watcher) Close() error {
-	close(w.closeChannel)
-	return w.watcher.Close()
+    if(!w.IsClosed()) {
+	    close(w.closeChannel)
+        w.isClosed = true
+    }
+    return w.watcher.Close()
+}
+
+// IsClose returns if the watcher has been closed.
+func (w *Watcher) IsClosed() bool {
+    return w.isClosed
 }
